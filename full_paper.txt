@@ -1,0 +1,142 @@
+
+
+
+
+
+Methodology on Autonomous Parking with Obstacle and Situational Adaptability: A Deep Q Learning Approach 
+Osama ALDuwairi
+
+
+
+Dr. Ziad Altobel
+AIE504 Neural Computations
+Artificial Intelligence
+Near East University
+20/4/2025
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Table of Contents
+
+Model Design	2
+Simulation Environment	2
+Deep Q Network Design	3
+Model Justification	5
+Training Procedure	5
+Evaluation Strategy	8
+References	8
+
+Model Design
+This Research uses an experimental approach with simulation and training to evaluate a model’s (car agent) ability to perform successful autonomous parking manoeuvres. The agent uses a trained Deep Q Network to make decisions such as steering and applying breaks or throttle while it navigates through different dynamic environments and obstacles [1]. The model’s performance is measured with reference to criteria such as success rates, collision rate and other baseline criteria. The design emphasizes an effective strategy for developing autonomous parking systems in a safe simulation environment.	
+Simulation Environment
+	For the purpose of this research, OpenAI Gym-compatible simulator was chosen to create a 2D simulated parking layout with obstacles, markings and dynamic conditions. The layout presents a top-down view on a rectangular car agent, Static obstacles are introduced such as barriers or stationary vehicles as well as dynamic obstacles such as passing pedestrians or passing cars are introduced to increse the trained agent’s ability to make crucial decisions and increase its reliability. A parking space layout is presented in figure 1.
+ 
+Figure 1 shows the simulation environment in open ai gym with a parking layout and a car agent
+The simulation runs in incremental time steps, at each step, the agent observes its surroundings (State Space) such as position orientation, and provides an output action according to its training up to that point, the environment then updates and provides feedback to the agent in the form of reward or punishment, allowing the agent to train and improve. The simulation uses simplified kinematic equations in 2 dimensions to simulate the motion characterized by the equations below:
+x_(t+1)=x_t+ v_t cos(θt)Δt 
+y_(t+1)=y_t+ v_t sin(θt)Δt 
+θ_(t+1)=θ_t+  v_t/L tan(δt)Δt 
+Where:
+x_t,y_t represent the position of the vehicle in 2D space at time t.
+v_t represents the velocity of the vehicle at time t.
+θ_t represent the orientation angle at time t.
+δt represents the steering angle.
+L represents the wheelbase length chosen as a constant = 2.5m
+Deep Q Network Design
+To effectively design and implement the DQN agent, several design aspects must be designed, including the state representation, action space, and reward function. These three aspects must be designed in an autonomous parking context to ensure ease of training and convergence. Figure 2 shows a high-level overview of the DQN network design
+
+State Space
+The state space represents the state of the agent as at a given timestep t, for simplification purposes and the scope of this research, the agent’s position in a parking space (x,y) as well as the orientation θ are directly known without the need to process raw images or raw sensor data into helpful coordinates. Distance to obstacles in a certain direction can easily be obtained using a simulated distance measuring sensors such as ultrasonic or LiDAR sensors attached to the agent’s body, they provide information about the distance to the nearest obstacle to be used in the decision-making process. These state inputs are summarized in the following state vector
+s_t=[x_t,y_t,θ_t,v_t,d_1….d_k ]^T   
+Where 	s_t is the state space vector and d_k  is the distance reading input of the kth distance sensor (k = 8 for this example).
+Action Space
+The action space represents the actions that the agents can choose from at a particular time step in the simulation. Discrete actions are simpler and more compatible with DQN than continuous action space because it operates with finite decision making, rather than having infinite action space. These actions include:
+	Throttle: Drive forward with a fixed throttle for one timestep 
+	Reverse Throttle: Drive backwards with a fixed throttle for one timestep
+	Brake: Apply breaking for a fixed time step to slow down or come to a stop.
+	Steer left: includes slightly steering left and applying a throttle for a timestep
+	Steer right: includes slightly steering right and applying a throttle for a timestep.
+These actions are summarized in table 1 along with their respective parameter influence.
+Table 1 shows the action space of the proposed DQN network
+ID	Symbol	Description	Δδ (steer)	Δv (m s⁻¹)
+0	a_0	Hold (brake)	0	−0.6
+1	a_1	Throttle forward	0	+0.6
+2	a_2	Reverse back	0	−0.6
+3	a_3	Left forward	+8°	+0.6
+4	a_4	Right forward	−8°	+0.6
+5	a_5	Left reverse	+8°	−0.6
+6	a_6	Right reverse	−8°	−0.6
+
+Reward Function
+The reward function which represents the function that determines the reward the agent receives after a particular action, it is a crucial aspect and must be designed with care to ensure learning stability, convergence and satisfactory outputs. The most important rewards are outlined below.
+	Collision Penalty: Represent the highest negative reward the agent can receive after an action, the goal is to strongly discourage the agent from actions that can result in collisions which can be catastrophic, additionally, a collision penalty terminates the learning episode requiring the agent to start over. For this research a value of -100 is penalized for collision errors.
+	Success Reward: Represents the highest positive reward the agent can receive after a successful parking manoeuvre, its characterized as being in the correct parking spot position and orientation (within a given tolerance ε). This reward also terminates an episode. Additional engineering can be done to weigh the reward given for a successful parking task based on the accuracy of the parking position. Similar to collision penalties, a value of +100 is awarded on a successful parking manoeuvre 
+	Progress Reward: Represents an intermediate reward awarded to the agent based on its progress to completing the parking goal, usually as coming closer to the parking position and orientation (+1 for this project). Similarly, a negative reward is given for the opposite direction (-0.5 penalty). 
+	Time Penalty:  Represents a performance enhancing award by penalizing the agent for performing an unnecessary manoeuvre, in aim to discourage the agent from wasting time even if it’s makes positive progress toward the goal. a very small value of -0.1 is chosen for this parameter.    
+These parameters as well as their values chosen for this experiment are outlined in the equation below 
+ 
+Where ε_p=0.5m is the position tolerance when parking and ε_θ=10deg is the orientation tolerance when parking
+Model Justification
+For the purpose of this research, a simple 2D environment using Open AI Gym is used to greatly simplify the training procedure while still balancing agent robustness, the simulator physics stays manageable for small scale resources compared to higher end simulation tools such as CARLA and Unity. Furthermore, a simple state space with real features is used rather than noisy data or sensor inputs, this abstraction makes the training and decision making easier while still making the simulation and training feasible, with these abstractions, the agent will still accurately learn to drive and park correctly in the designated spots while still balancing design and implementation complexity 
+Training Procedure
+To successfully train the agent in the simulation environment, we follow a Deep Reinforcement Learning approach while utilizing training enhancing strategies such as experience replay and target network stability [2].
+The training procedure starts with the agent assigned a random position and orientation in the parking lot, it then observers its initial state and outputs an initial action according to a dynamic epsilon greedy policy to decide whether the agent should take a risky decision to learn more or stick with the safer option with the highest Q value, Generally, epsilon values will be high to encourage exploration and gradually reduced as the agent improves. After an action is performed, the environment is updated and feedback in the form of a reward is fed back to the agent network to adjust network parameters. The transition of state between time steps is saved into a replay buffer. This process is repeated until the episode terminates after a successful parking or a collision or a timeout.
+Experience Replay
+To avoid overfitting and training the network on back-to-back instances, we employ experience replay buffer and mini-batch random sampling that samples random instances saved in the experience replay buffer, at each time step, the agent uses its predicted Q values and actual next states in these instances to adjust its current network parameters using a gradient descent to minimize the loss function or error. This strategy speeds up the learning process and provides more stability to the training.
+Target and Main Network
+Two architecturally similar Q networks with ReLU activation functions and 3 hidden layers containing 256 neurons are used during training, a target Q network and the main network. Instead of updating the weights and parameters of the network at each step which may lead to divergence and learning instability, the target network is updated at a smaller rate, the main networks adjusts gradually to a stationary target network to speed up and enhance training [3]. The flow of data from state vector s_t to output action Q_t is depicted in the flow diagram below (figure 3)
+ 
+The target Q network is responsible for calculating the target Q value that the main network should try and produce by altering its parameters. The target Q value is calculated using the bellman equation taking into consideration immediate 
+ 
+Where r_t  is the immediate reward by the environment and Q_(θ-)represents the target network with weight set θ- multiplied by the discount factor γ representing the weighted value of the next possible action a^'.
+With the values of the target Q value provided by the target network and the Q value provided by the main network, we use Huber loss function to calculate the error at each batch from the experience replay buffer, the Huber function loss is used with backpropagation and gradient descent to update the main network’s weight and biases θ and eventually the target networks parameters θ-, the Huber Loss function is depicted in the equation below:
+ 
+Where B is the batch size used in the training step and the Huber input is the error difference between target and predicted Q values.
+When calculating loss, the value of loss is used in the gradient descent backpropagation to update the network’s parameter using the equation:
+ 
+Where α is the learning rate and ∇_θ is the gradient operator with respect to network parameters. This equation shows how parameters are updated over each iteration.
+After N updates to the main network, the target network is similarly updated with a soft update using the equation below
+ 
+Where τ is a constant controlling the sensitivity of the shifting of the target network’s parameters with respect to the main network, typically taken to be very small in soft update network architectures as 10^(-3)
+Hyperparameter Tuning
+Hyperparameters serve as the most important aspect of the training procedure, careful design and control of the hyperparameters is necessary to achieve satisfactory and convergent performance. [4]
+	Learning Rate α: the learning rate how much the parameters of the network are adjusted at each learning step, a high learning rate indicates high adaptability but high risk. For this experiment values of 10^(-3) are used. This value provides a good balance between speed and safety during training
+	Discount Factor γ: discount factor refers to the extent that the agent values future rewards, in a parking task context, a high discount factor value is preferred because the focus is the end result which is parking correctly, not any intermediate awards. Therefore, high values of γ are chosen for this research ranging from 0.9 to 0.95
+	Epsilon Greedy ε: Epsilon greedy policy refers the agent’s tendency to try new actions with higher risk (high ε) than stick to safe actions (low ε). For the parking task, a varying ε value is set which starts initially high to encourage exploration and gradually decreasing it exponentially to focus on safety. It should never reach zero as to avoid getting the agent stuck in an error loop. The chosen equation of the epsilon greedy policy is depicted below 
+ 
+Where ε_t is the epsilon value at time t, ε_max,ε_min represent the value of the highest and lowerst allowed epsilon values (never zero to always encourage some level of exploration) and λ is the time constant defining the speed of exponential decrease. 
+	Replay Buffer Size: Replay buffer size is important to specify how much memory the agent possesses in the past, a balanced size is recommended to speed up sampling while still maintaining sufficient memory of past experiences. For this experiment, a value on the order of 10^5 transitions are chosen.
+	Batch size B: number of samples used per training updated is often standardized in deep RL methods and are chosen to be 64 for this experiment.
+	Target Update Frequency N: because we are using a target and main network to stabilize training, the rate of update of the target network is slower than the main network by the order of 10^3, meaning the target network updates once for every 1000 main network updates.
+Having defined the training parameter and procedure, the training continues for a fixed number of episodes equal to approximately 5000 episodes, each episode with a different parking alignment and obstacle configuration to avoid overfitting. a curve to observe the agent’s performance over these sets of episodes is observed as average reward per episode and compared. If the agent significantly improves and achieves a threshold success rate, training is concluded, moreover, if the agent gets stuck in an error loop and can’t improve beyond a certain point, training is concluded and parameters are adjusted accordingly. Training is done on a PC with Nvidia GTX3060 GPU which is sufficient for the simplifications taken earlier in the design.
+Evaluation Strategy
+After training, the DQN network policy is saved and tested against fixed scenarios to measure performance, the test scenarios are randomized and generally not the same as the ones used in the training procedure itself. Important metrics of the agent are recorded as such:
+	Success Rate: which indicates the percentage of episode the agent successfully performs a parking manoeuvre. This serves as the most important metric to measure the agent’s performance, generally values of 70% and higher are generally accepted for the purposes of this research.
+	Average Time to Park: in addition to success metrics, the time taken by the agent to successfully perform a parking manoeuvre is also considered, reflecting efficiency of the agent, the time is variable according to the complexity of each trail run.
+	Collision Count: or failure rate is the opposite of success rate metrics, which indicates the number of failed tests due to a crash or a timeout (stuck in a loop), its crucial that this rate is kept minimal or even non-existent, for the purposes of this research, a failure rate of 1% or lower is generally acceptable.
+	Parking Accuracy: in addition to successful parking, measuring the agent’s ability to park well in designated parking spot is also a bonus, the more correct the agent’s alignment and position is, the more sophisticated the design is.
+
+References
+
+[1]	J. Kim, Parking Reinforcement Learning, (n.d.). https://www.josephsookim.com/projects/parking-reinforcement-learning.
+[2]	S. Ohnishi, E. Uchibe, Y. Yamaguchi, K. Nakanishi, Y. Yasui, S. Ishii, Constrained deep Q-learning gradually approaching ordinary Q-learning, Front. Neurorobot. 13 (2019) 1–19. https://doi.org/10.3389/fnbot.2019.00103.
+[3]	What are target networks in DQN?, (n.d.). https://milvus.io/ai-quick-reference/what-are-target-networks-in-dqn.
+[4]	D. Klee, Reinforcement Learning : Q-Learning, (n.d.).
+
+
+
