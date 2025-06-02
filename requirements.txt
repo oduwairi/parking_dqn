@@ -1,0 +1,36 @@
+# Core Deep Learning and RL
+torch>=1.12.0
+numpy>=1.21.0
+gym>=0.21.0
+stable-baselines3>=1.6.0
+
+# Visualization and Plotting
+matplotlib>=3.5.0
+seaborn>=0.11.0
+pygame>=2.1.0
+opencv-python>=4.6.0
+pillow>=9.0.0
+
+# Utilities and Configuration
+pyyaml>=6.0
+tqdm>=4.64.0
+tensorboard>=2.9.0
+wandb>=0.13.0  # Optional: for advanced experiment tracking
+
+# Scientific Computing
+scipy>=1.8.0
+pandas>=1.4.0
+
+# Testing and Development
+pytest>=7.0.0
+pytest-cov>=3.0.0
+black>=22.0.0
+flake8>=4.0.0
+
+# Optional GPU acceleration (uncomment if using CUDA)
+# torch-audio>=0.12.0
+# torchvision>=0.13.0
+
+# Environment simulation enhancements
+shapely>=1.8.0  # For geometric operations in collision detection
+pyglet>=1.5.0   # Alternative rendering backend 
