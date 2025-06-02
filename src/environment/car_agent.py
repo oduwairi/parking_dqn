@@ -7,14 +7,8 @@ x_{t+1} = x_t + v_t * cos(θ_t) * Δt
 y_{t+1} = y_t + v_t * sin(θ_t) * Δt  
 θ_{t+1} = θ_t + (v_t/L) * tan(δ_t) * Δt
 
-Action space (7 discrete actions):
-- a_0: Hold/Brake (Δv = -0.6 m/s, Δδ = 0°)
-- a_1: Throttle forward (Δv = +0.6 m/s, Δδ = 0°)
-- a_2: Reverse back (Δv = -0.6 m/s, Δδ = 0°)
-- a_3: Left forward (Δv = +0.6 m/s, Δδ = +8°)
-- a_4: Right forward (Δv = +0.6 m/s, Δδ = -8°)
-- a_5: Left reverse (Δv = -0.6 m/s, Δδ = +8°)
-- a_6: Right reverse (Δv = -0.6 m/s, Δδ = -8°)
+Phase 2 Update: Action handling moved to ActionSpace class.
+Car agent now focuses only on physics and state management.
 """
 
 import math
@@ -26,6 +20,8 @@ class CarAgent:
     """
     Car agent with kinematic motion model.
     Implements the simplified 2D car physics as described in the paper.
+    
+    Phase 2: Action handling delegated to ActionSpace class.
     """
     
     def __init__(
@@ -55,18 +51,6 @@ class CarAgent:
         # Current steering angle (radians)
         self.steering_angle = 0.0
         
-        # Action parameters from paper
-        self.action_params = {
-            # Action ID: (velocity_change, steering_change_degrees)
-            0: (-0.6, 0),   # Hold/Brake
-            1: (+0.6, 0),   # Throttle forward
-            2: (-0.6, 0),   # Reverse back (same as brake for velocity)
-            3: (+0.6, +8),  # Left forward
-            4: (+0.6, -8),  # Right forward  
-            5: (-0.6, +8),  # Left reverse
-            6: (-0.6, -8),  # Right reverse
-        }
-        
         # Velocity and steering limits
         self.max_velocity = 5.0   # m/s
         self.min_velocity = -5.0  # m/s (reverse)
@@ -83,28 +67,6 @@ class CarAgent:
         self.theta = theta
         self.velocity = velocity
         self.steering_angle = 0.0
-        
-    def apply_action(self, action: int, dt: float):
-        """
-        Apply discrete action to car.
-        
-        Args:
-            action: Action ID (0-6)
-            dt: Time step (seconds)
-        """
-        if action not in self.action_params:
-            raise ValueError(f"Invalid action: {action}. Must be 0-6.")
-            
-        velocity_change, steering_change_deg = self.action_params[action]
-        
-        # Apply velocity change
-        self.velocity += velocity_change * dt
-        self.velocity = np.clip(self.velocity, self.min_velocity, self.max_velocity)
-        
-        # Apply steering change  
-        steering_change_rad = math.radians(steering_change_deg)
-        self.steering_angle += steering_change_rad * dt
-        self.steering_angle = np.clip(self.steering_angle, -self.max_steering, self.max_steering)
         
     def update(self, dt: float):
         """
@@ -199,11 +161,11 @@ class CarAgent:
             angle += 2 * math.pi
         return angle
         
-    def __repr__(self) -> str:
-        """String representation of car state."""
-        return (f"CarAgent(x={self.x:.2f}, y={self.y:.2f}, "
-                f"θ={math.degrees(self.theta):.1f}°, v={self.velocity:.2f}m/s)")
-                
     def distance_to(self, x: float, y: float) -> float:
-        """Calculate Euclidean distance to point (x, y)."""
-        return math.sqrt((self.x - x)**2 + (self.y - y)**2) 
+        """Calculate distance to a point."""
+        return math.sqrt((self.x - x)**2 + (self.y - y)**2)
+    
+    def __repr__(self) -> str:
+        """String representation of car agent."""
+        return (f"CarAgent(pos=({self.x:.2f}, {self.y:.2f}), "
+                f"θ={math.degrees(self.theta):.1f}°, v={self.velocity:.2f}m/s)") 
