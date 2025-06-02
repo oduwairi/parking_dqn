@@ -163,30 +163,47 @@ class SensorArray:
     
     def __init__(self, max_range: float = 20.0, resolution: float = 0.1):
         """
-        Initialize sensor array.
+        Initialize sensor array with 8 sensors at 45-degree intervals.
         
         Args:
-            max_range: Maximum detection range for all sensors (meters)
-            resolution: Ray casting resolution (meters)
+            max_range: Maximum detection range in meters
+            resolution: Distance measurement resolution
         """
         self.max_range = max_range
         self.resolution = resolution
+        self.n_sensors = 8
         
-        # Create 8 sensors at 45-degree intervals
-        self.sensors: List[DistanceSensor] = []
-        for i in range(8):
-            angle = i * (math.pi / 4)  # 45 degrees in radians
-            sensor = DistanceSensor(angle, max_range, resolution)
+        # Sensor directions: 0°, 45°, 90°, 135°, 180°, 225°, 270°, 315°
+        # (front, front-right, right, rear-right, rear, rear-left, left, front-left)
+        self.sensor_angles = [
+            0.0,                    # 0° - Front
+            math.pi / 4,           # 45° - Front-right  
+            math.pi / 2,           # 90° - Right
+            3 * math.pi / 4,       # 135° - Rear-right
+            math.pi,               # 180° - Rear
+            5 * math.pi / 4,       # 225° - Rear-left
+            3 * math.pi / 2,       # 270° - Left
+            7 * math.pi / 4        # 315° - Front-left
+        ]
+        
+        # Create sensors
+        self.sensors = []
+        for angle in self.sensor_angles:
+            sensor = DistanceSensor(
+                relative_angle=angle,
+                max_range=max_range,
+                resolution=resolution
+            )
             self.sensors.append(sensor)
         
-        # Sensor direction names for debugging
+        # Sensor names for debugging and analysis
         self.sensor_names = [
             "Front", "Front-Right", "Right", "Rear-Right",
             "Rear", "Rear-Left", "Left", "Front-Left"
         ]
         
-        # Cache for last readings
-        self.last_readings: List[float] = [max_range] * 8
+        # Last readings for state vector
+        self.last_readings = [max_range] * self.n_sensors
     
     def get_all_readings(
         self,
@@ -386,6 +403,72 @@ class SensorArray:
     def __repr__(self) -> str:
         """Representation of sensor array."""
         return f"SensorArray(n_sensors=8, max_range={self.max_range}m)"
+
+    def get_distance_readings_with_obstacles(
+        self,
+        car_x: float,
+        car_y: float,
+        car_theta: float,
+        obstacle_manager: Any
+    ) -> List[float]:
+        """
+        Get distance readings using obstacle manager for Phase 3 integration.
+        
+        Args:
+            car_x: Car X position
+            car_y: Car Y position
+            car_theta: Car orientation angle (radians)
+            obstacle_manager: ObstacleManager instance for ray intersection
+            
+        Returns:
+            List of 8 distance readings [d_1, d_2, ..., d_8]
+        """
+        readings = []
+        
+        for i, sensor in enumerate(self.sensors):
+            # Calculate sensor direction in global coordinates
+            global_angle = car_theta + sensor.relative_angle
+            
+            # Use obstacle manager's ray intersection method
+            distance = obstacle_manager.get_ray_intersection(
+                car_x, car_y, global_angle, self.max_range
+            )
+            
+            readings.append(distance)
+        
+        self.last_readings = readings
+        return readings
+    
+    def get_distance_readings(
+        self,
+        car_x: float,
+        car_y: float,
+        car_theta: float,
+        environment_bounds: Tuple[float, float, float, float]
+    ) -> List[float]:
+        """
+        Get distance readings using only environment boundaries (no obstacles).
+        
+        Args:
+            car_x: Car X position
+            car_y: Car Y position 
+            car_theta: Car orientation angle (radians)
+            environment_bounds: Environment boundaries (min_x, min_y, max_x, max_y)
+            
+        Returns:
+            List of 8 distance readings [d_1, d_2, ..., d_8]
+        """
+        readings = []
+        
+        for i, sensor in enumerate(self.sensors):
+            distance = sensor.get_reading(
+                car_x, car_y, car_theta,
+                environment_bounds, obstacles=None
+            )
+            readings.append(distance)
+        
+        self.last_readings = readings
+        return readings
 
 
 # Global instance for easy access
