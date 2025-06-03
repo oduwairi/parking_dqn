@@ -153,12 +153,13 @@ class ActionSpace:
         
         velocity_change, steering_change_deg = self.get_action_params(action)
         
-        # Apply velocity change (with time scaling)
+        # Apply velocity change (scaled by dt for smooth physics)
         new_velocity = car_agent.velocity + (velocity_change * dt)
         
-        # Apply steering change (with time scaling) 
+        # Apply steering change (FIXED AMOUNT per action, not scaled by dt)
+        # This fixes the steering responsiveness issue
         steering_change_rad = math.radians(steering_change_deg)
-        new_steering = car_agent.steering_angle + (steering_change_rad * dt)
+        new_steering = car_agent.steering_angle + steering_change_rad
         
         # Apply limits and constraints
         car_agent.velocity = np.clip(new_velocity, car_agent.min_velocity, car_agent.max_velocity)

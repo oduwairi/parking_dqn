@@ -183,31 +183,46 @@ class DQNTrainer:
         
         print(f"✅ Resumed from episode {self.current_episode}, step {self.training_step}")
     
-    def train(self) -> Dict[str, Any]:
+    def train(self, episodes: int = None, render_during_training: bool = False, render_frequency: int = 1, verbose: bool = True) -> Dict[str, Any]:
         """
         Execute complete training process.
+        
+        Args:
+            episodes: Number of episodes to train (overrides config if provided)
+            render_during_training: Whether to render episodes during training
+            render_frequency: How often to render (1 = every episode, 2 = every other episode, etc.)
+            verbose: Whether to print detailed progress
         
         Returns:
             Training results and final performance metrics
         """
-        print(f"\n🎯 Starting DQN Training for {self.config.total_episodes:,} episodes")
-        print(f"   Target: {self.config.target_success_rate:.0%} success rate, <{self.config.target_collision_rate:.1%} collision rate")
+        total_episodes = episodes if episodes is not None else self.config.total_episodes
+        
+        if verbose:
+            print(f"\n🎯 Starting DQN Training for {total_episodes:,} episodes")
+            print(f"   Target: {self.config.target_success_rate:.0%} success rate, <{self.config.target_collision_rate:.1%} collision rate")
+            if render_during_training:
+                print(f"   🎮 Visualization: ON (every {render_frequency} episode{'s' if render_frequency > 1 else ''})")
         
         training_start_time = time.time()
         
         try:
             # Main training loop
-            for episode in range(self.current_episode + 1, self.config.total_episodes + 1):
+            for episode in range(self.current_episode + 1, total_episodes + 1):
                 self.current_episode = episode
                 
+                # Determine if we should render this episode
+                should_render = render_during_training and (episode % render_frequency == 0)
+                
                 # Run single episode
-                episode_metrics = self._train_episode()
+                episode_metrics = self._train_episode(render=should_render)
                 
                 # Update performance tracking
                 self._update_performance_tracking(episode_metrics)
                 
                 # Log episode metrics
-                self._log_episode(episode_metrics)
+                if verbose:
+                    self._log_episode(episode_metrics)
                 
                 # Evaluate and checkpoint at specified intervals
                 if episode % self.config.evaluation_frequency == 0:
@@ -219,12 +234,14 @@ class DQNTrainer:
                     
                     # Check early stopping
                     if self._should_early_stop(eval_metrics):
-                        print(f"🔴 Early stopping triggered at episode {episode}")
+                        if verbose:
+                            print(f"🔴 Early stopping triggered at episode {episode}")
                         break
                 
                 # Check target performance achieved
                 if self._target_performance_achieved():
-                    print(f"🎯 Target performance achieved at episode {episode}!")
+                    if verbose:
+                        print(f"🎯 Target performance achieved at episode {episode}!")
                     break
             
             # Training completed
@@ -234,17 +251,22 @@ class DQNTrainer:
             return final_metrics
             
         except KeyboardInterrupt:
-            print(f"\n⚠️ Training interrupted by user at episode {self.current_episode}")
+            if verbose:
+                print(f"\n⚠️ Training interrupted by user at episode {self.current_episode}")
             final_metrics = self._finalize_training(time.time() - training_start_time)
             return final_metrics
         
         except Exception as e:
-            print(f"\n❌ Training failed: {e}")
+            if verbose:
+                print(f"\n❌ Training failed: {e}")
             raise
     
-    def _train_episode(self) -> Dict[str, Any]:
+    def _train_episode(self, render: bool = False) -> Dict[str, Any]:
         """
         Train a single episode.
+        
+        Args:
+            render: Whether to render this episode
         
         Returns:
             Episode metrics dictionary
@@ -265,6 +287,11 @@ class DQNTrainer:
             
             # Take step in environment
             next_state, reward, done, info = self.environment.step(action)
+            
+            # Render if requested
+            if render:
+                self.environment.render()
+                time.sleep(0.05)  # Small delay to make visualization visible
             
             # Clip reward if configured
             if self.config.reward_clipping:

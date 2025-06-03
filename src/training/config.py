@@ -241,6 +241,30 @@ class ConfigPresets:
             gradient_clip_norm=5.0,
             use_soft_update=True
         )
+    
+    @staticmethod
+    def debug_viz() -> TrainingConfig:
+        """Configuration for visual debugging with rendering."""
+        return TrainingConfig(
+            total_episodes=50,
+            max_steps_per_episode=100,
+            learning_rate=1e-3,
+            discount_factor=0.9,
+            batch_size=16,
+            target_update_frequency=25,
+            epsilon_start=0.8,
+            epsilon_end=0.1,
+            epsilon_decay_episodes=25,
+            replay_buffer_size=2000,
+            min_replay_size=50,
+            log_frequency=5,
+            checkpoint_frequency=10,
+            evaluation_frequency=10,
+            evaluation_episodes=1,
+            enable_obstacles=True,
+            randomize_target=False,  # Keep target fixed for easier debugging
+            use_gpu=False  # CPU for debugging to avoid GPU memory issues
+        )
 
 
 def get_config(preset: str = "paper_baseline") -> TrainingConfig:
@@ -260,7 +284,8 @@ def get_config(preset: str = "paper_baseline") -> TrainingConfig:
         "paper_baseline": ConfigPresets.paper_baseline,
         "quick_test": ConfigPresets.quick_test,
         "high_performance": ConfigPresets.high_performance,
-        "conservative": ConfigPresets.conservative
+        "conservative": ConfigPresets.conservative,
+        "debug_viz": ConfigPresets.debug_viz
     }
     
     if preset not in presets:
@@ -275,7 +300,7 @@ def get_config(preset: str = "paper_baseline") -> TrainingConfig:
 if __name__ == "__main__":
     # Example usage and testing
     print("Available Configuration Presets:")
-    for preset_name in ["paper_baseline", "quick_test", "high_performance", "conservative"]:
+    for preset_name in ["paper_baseline", "quick_test", "high_performance", "conservative", "debug_viz"]:
         print(f"\n{preset_name.upper()}:")
         config = get_config(preset_name)
         print(config)

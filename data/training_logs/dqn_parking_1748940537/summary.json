@@ -1,0 +1,25 @@
+{
+  "experiment_name": "dqn_parking_1748940537",
+  "total_episodes": 50,
+  "total_training_steps": 4391,
+  "training_time_hours": 0.07721531821621788,
+  "overall_stats": {
+    "avg_reward": -21.75854602560581,
+    "std_reward": 44.8933035755088,
+    "max_reward": 65.41879796645195,
+    "min_reward": -116.37855290761763,
+    "success_rate": 0.0,
+    "collision_rate": 0.22,
+    "avg_steps": 88.8
+  },
+  "recent_stats": {
+    "avg_reward": -21.75854602560581,
+    "success_rate": 0.0,
+    "collision_rate": 0.22
+  },
+  "best_performance": {
+    "best_avg_reward": 13.702325466900318,
+    "best_episode": 1,
+    "best_success_rate": 0.0
+  }
+}
