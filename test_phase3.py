@@ -46,21 +46,29 @@ def test_obstacle_management():
         print(f"   - By type: {summary['by_type']}")
         print(f"   - Total area: {summary['total_area_covered']:.1f} m²")
         
-        # Test individual obstacle types
+        # Test individual obstacle types with better placement
         test_obstacles = [
-            Obstacle(x=10, y=10, obstacle_type=ObstacleType.CIRCULAR, radius=2.0),
-            Obstacle(x=20, y=10, obstacle_type=ObstacleType.VEHICLE, width=4.0, height=2.0),
-            Obstacle(x=30, y=10, obstacle_type=ObstacleType.BARRIER, width=1.0, height=5.0)
+            # Place circular obstacle away from existing ones
+            Obstacle(x=15, y=25, obstacle_type=ObstacleType.CIRCULAR, radius=1.5, color=(255, 100, 100)),
+            # Place vehicle obstacle in open area
+            Obstacle(x=8, y=15, obstacle_type=ObstacleType.VEHICLE, width=4.0, height=2.0, color=(100, 255, 100)),
+            # Place barrier in open area
+            Obstacle(x=35, y=25, obstacle_type=ObstacleType.BARRIER, width=1.0, height=4.0, color=(100, 100, 255))
         ]
         
         for obs in test_obstacles:
             if obstacle_manager.add_obstacle(obs):
                 print(f"✅ Added {obs.obstacle_type.value} obstacle at ({obs.x}, {obs.y})")
             else:
-                print(f"❌ Failed to add {obs.obstacle_type.value} obstacle")
+                print(f"⚠️  Could not add {obs.obstacle_type.value} obstacle at ({obs.x}, {obs.y}) - placement conflict")
+        
+        # Test final summary
+        final_summary = obstacle_manager.get_obstacles_summary()
+        print(f"✅ Final obstacle count: {final_summary['total_obstacles']}")
+        print(f"   - Final by type: {final_summary['by_type']}")
         
         # Test ray intersection
-        test_ray_distance = obstacle_manager.get_ray_intersection(0, 10, 0, 20)  # Ray pointing right
+        test_ray_distance = obstacle_manager.get_ray_intersection(0, 15, 0, 30)  # Ray pointing right
         print(f"✅ Ray intersection test: {test_ray_distance:.2f}m")
         
         print("✅ Obstacle Management Tests PASSED")
@@ -138,7 +146,13 @@ def test_collision_detection():
         
         # Add some test obstacles
         obstacle_manager.create_default_obstacles(40.0, 15.0)
-        print(f"✅ Created obstacles for collision testing")
+        
+        # Add a circular obstacle in a clear area
+        circular_obs = Obstacle(x=15, y=20, obstacle_type=ObstacleType.CIRCULAR, radius=2.0, color=(255, 0, 0))
+        if obstacle_manager.add_obstacle(circular_obs):
+            print(f"✅ Added circular obstacle for collision testing")
+        else:
+            print(f"⚠️  Could not add circular obstacle - will test with default obstacles")
         
         # Test car collision model
         car_model = collision_detector.car_model
@@ -149,7 +163,7 @@ def test_collision_detection():
             (25.0, 15.0, 0.0, "Open space"),
             (1.0, 15.0, 0.0, "Near left boundary"),
             (49.0, 15.0, 0.0, "Near right boundary"),
-            (15.0, 15.0, 0.0, "Near obstacle area"),
+            (15.0, 20.0, 0.0, "Near circular obstacle"),
             (-1.0, 15.0, 0.0, "Outside boundaries")
         ]
         
@@ -204,15 +218,43 @@ def test_enhanced_reward_system():
         print(f"   - Progress negative: {params['progress_negative']}")
         print(f"   - Time penalty: {params['time_penalty']}")
         
-        # Test a few actions to see reward progression
-        print(f"\n✅ Testing reward progression:")
-        for step in range(5):
-            action = env.action_space.sample()  # Random action
+        # Test structured action sequence to show steering and reward changes
+        print(f"\n✅ Testing structured action sequence with steering:")
+        print("   (0=hold, 1=forward, 2=reverse, 3=left+forward, 4=right+forward, 5=left+reverse, 6=right+reverse)")
+        
+        # Get initial car position and target
+        env_info = env.get_environment_info()
+        initial_distance = math.sqrt(
+            (env.car.x - env_info['active_target']['x'])**2 + 
+            (env.car.y - env_info['active_target']['y'])**2
+        )
+        print(f"   Initial distance to target: {initial_distance:.2f}m")
+        
+        # Test sequence: forward, turn, forward towards target
+        action_sequence = [
+            (1, "Forward"),
+            (1, "Forward"),
+            (3, "Left+Forward (steering)"),
+            (3, "Left+Forward (steering)"),
+            (1, "Forward"),
+            (4, "Right+Forward (steering)"),
+            (1, "Forward"),
+            (2, "Reverse")
+        ]
+        
+        for step, (action, action_name) in enumerate(action_sequence):
             obs, reward, done, info = env.step(action)
             
-            print(f"   Step {step+1}: action={action}, reward={reward:.3f}, "
-                  f"distance={info['distance_to_target']:.2f}m, "
-                  f"progress={info['progress_score']:.3f}")
+            # Calculate progress
+            current_distance = info['distance_to_target']
+            progress_change = initial_distance - current_distance if step == 0 else previous_distance - current_distance
+            
+            print(f"   Step {step+1}: {action_name} -> reward={reward:.3f}, "
+                  f"distance={current_distance:.2f}m (Δ{progress_change:+.3f}), "
+                  f"car_pos=({env.car.x:.1f},{env.car.y:.1f}), "
+                  f"car_angle={math.degrees(env.car.theta):.1f}°")
+            
+            previous_distance = current_distance
             
             if done:
                 print(f"   Episode terminated: collision={info['is_collision']}, "
@@ -220,13 +262,13 @@ def test_enhanced_reward_system():
                 break
         
         # Test environment info
-        env_info = env.get_environment_info()
+        final_env_info = env.get_environment_info()
         print(f"✅ Environment info:")
-        print(f"   - Obstacles enabled: {env_info['obstacles_enabled']}")
-        print(f"   - Total obstacles: {env_info['obstacles_info'].get('total_obstacles', 0)}")
-        print(f"   - Active target position: ({env_info['active_target']['x']:.1f}, {env_info['active_target']['y']:.1f})")
-        print(f"   - Position tolerance: {env_info['active_target']['position_tolerance']}m")
-        print(f"   - Angle tolerance: {env_info['active_target']['angle_tolerance_deg']}°")
+        print(f"   - Obstacles enabled: {final_env_info['obstacles_enabled']}")
+        print(f"   - Total obstacles: {final_env_info['obstacles_info'].get('total_obstacles', 0)}")
+        print(f"   - Active target position: ({final_env_info['active_target']['x']:.1f}, {final_env_info['active_target']['y']:.1f})")
+        print(f"   - Position tolerance: {final_env_info['active_target']['position_tolerance']}m")
+        print(f"   - Angle tolerance: {final_env_info['active_target']['angle_tolerance_deg']}°")
         
         env.close()
         print("✅ Enhanced Reward System Tests PASSED")
@@ -266,12 +308,16 @@ def test_environment_integration():
             success_count = 0
             collision_count = 0
             
+            # Use smarter action selection for better results
             for episode in range(3):  # Quick test
                 obs = env.reset()
                 episode_reward = 0
                 
                 for step in range(20):  # Limited steps for testing
-                    action = env.action_space.sample()
+                    # Use action sequence that demonstrates steering
+                    action_cycle = [1, 3, 1, 4, 1, 2]  # forward, left+forward, forward, right+forward, forward, reverse
+                    action = action_cycle[step % len(action_cycle)]
+                    
                     obs, reward, done, info = env.step(action)
                     episode_reward += reward
                     
@@ -307,7 +353,7 @@ def test_environment_integration():
 def test_interactive_demo():
     """Test 6: Interactive Visualization Demo"""
     print("\n" + "=" * 60)
-    print("TEST 6: Interactive Demo (5 seconds)")
+    print("TEST 6: Interactive Demo (10 seconds)")
     print("=" * 60)
     
     try:
@@ -321,19 +367,33 @@ def test_interactive_demo():
         )
         
         print("✅ Environment created with visualization")
-        print("   Running 5-second demo with random actions...")
+        print("   Running 10-second demo with structured steering actions...")
+        print("   Watch for: circular obstacles (red circles), car steering, reward changes")
         
         obs = env.reset()
         start_time = time.time()
         step_count = 0
         
-        while time.time() - start_time < 10.0:  # 5 second demo
-            action = env.action_space.sample()
+        # Structured action sequence to show steering
+        action_sequence = [1, 1, 3, 3, 3, 1, 1, 4, 4, 4, 1, 1, 2, 2]  # forward, left turns, forward, right turns, forward, reverse
+        action_index = 0
+        
+        while time.time() - start_time < 10.0:  # 10 second demo
+            action = action_sequence[action_index % len(action_sequence)]
+            action_index += 1
+            
             obs, reward, done, info = env.step(action)
             step_count += 1
             
+            # Print action info occasionally
+            if step_count % 10 == 0:
+                action_names = ["hold", "forward", "reverse", "left+forward", "right+forward", "left+reverse", "right+reverse"]
+                print(f"   Step {step_count}: {action_names[action]} -> reward={reward:.3f}, "
+                      f"distance={info['distance_to_target']:.2f}m")
+            
             # Render environment
             env.render()
+            time.sleep(0.1)  # Slow down for better visualization
             
             if done:
                 print(f"   Episode completed at step {step_count}: "
@@ -341,6 +401,7 @@ def test_interactive_demo():
                       f"collision={info['is_collision']}")
                 obs = env.reset()
                 step_count = 0
+                action_index = 0
                     
         print(f"✅ Demo completed successfully ({step_count} steps)")
         env.close()

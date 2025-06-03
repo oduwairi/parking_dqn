@@ -49,12 +49,82 @@ def test_dqn_network_architecture():
         print(f"   - Hidden layers: {network_info['num_hidden_layers']} (expected: 3)")
         print(f"   - Total parameters: {network_info['total_parameters']:,}")
         
-        # Test forward pass
-        test_batch = torch.randn(32, 12)  # Batch of 32 states
-        q_values = main_net(test_batch)
+        # Detailed layer analysis
+        print(f"\n✅ Detailed Network Architecture Analysis:")
+        total_params = 0
+        layer_count = 0
+        for name, param in main_net.named_parameters():
+            param_count = param.numel()
+            total_params += param_count
+            layer_count += 1
+            print(f"   Layer {layer_count}: {name} -> {param.shape} ({param_count:,} params)")
         
-        assert q_values.shape == (32, 7), f"Expected shape (32, 7), got {q_values.shape}"
-        print(f"✅ Forward pass working: {test_batch.shape} → {q_values.shape}")
+        print(f"   Total trainable parameters: {total_params:,}")
+        
+        # Test network initialization health
+        print(f"\n✅ Network Initialization Health Check:")
+        weight_stats = []
+        bias_stats = []
+        
+        for name, param in main_net.named_parameters():
+            if 'weight' in name:
+                weight_stats.append({
+                    'layer': name,
+                    'mean': param.data.mean().item(),
+                    'std': param.data.std().item(),
+                    'min': param.data.min().item(),
+                    'max': param.data.max().item()
+                })
+            elif 'bias' in name:
+                bias_stats.append({
+                    'layer': name,
+                    'mean': param.data.mean().item(),
+                    'std': param.data.std().item()
+                })
+        
+        for stat in weight_stats:
+            print(f"   {stat['layer']}: mean={stat['mean']:.4f}, std={stat['std']:.4f}, range=[{stat['min']:.4f}, {stat['max']:.4f}]")
+        
+        # Test gradient flow
+        print(f"\n✅ Gradient Flow Test:")
+        test_batch = torch.randn(32, 12)
+        target_values = torch.randn(32, 7)
+        
+        # Forward pass
+        q_values = main_net(test_batch)
+        loss = torch.nn.functional.mse_loss(q_values, target_values)
+        
+        # Backward pass
+        loss.backward()
+        
+        # Check gradients
+        gradient_norms = []
+        for name, param in main_net.named_parameters():
+            if param.grad is not None:
+                grad_norm = param.grad.norm().item()
+                gradient_norms.append(grad_norm)
+                if 'weight' in name:
+                    print(f"   {name}: grad_norm={grad_norm:.6f}")
+        
+        avg_grad_norm = np.mean(gradient_norms)
+        print(f"   Average gradient norm: {avg_grad_norm:.6f}")
+        
+        if avg_grad_norm > 1e-8 and avg_grad_norm < 1e2:
+            print(f"   ✅ Healthy gradient flow (not vanishing/exploding)")
+        else:
+            print(f"   ⚠️  Gradient flow may have issues")
+        
+        # Clear gradients
+        main_net.zero_grad()
+        
+        # Test forward pass with different batch sizes
+        print(f"\n✅ Batch Size Flexibility Test:")
+        batch_sizes = [1, 8, 32, 64, 128]
+        for bs in batch_sizes:
+            test_input = torch.randn(bs, 12)
+            output = main_net(test_input)
+            assert output.shape == (bs, 7), f"Output shape mismatch for batch size {bs}"
+            print(f"   Batch size {bs:3d}: ✅ {test_input.shape} → {output.shape}")
         
         # Test action selection
         single_state = torch.randn(12)
@@ -62,26 +132,99 @@ def test_dqn_network_architecture():
         
         assert 0 <= action < 7, f"Action {action} not in valid range [0, 6]"
         print(f"✅ Action selection working: action={action}, Q-values shape={q_vals.shape}")
+        print(f"   Q-values: {q_vals.squeeze().detach().numpy()}")
         
         # Test Double DQN
         double_main, double_target = create_dqn_networks(use_double_dqn=True)
+        double_info = double_main.get_network_info()
         print(f"✅ Double DQN networks created")
+        print(f"   - Same architecture as standard DQN: {double_info['total_parameters']:,} params")
         
-        # Test target network updates
-        original_params = target_net.state_dict()['network.0.weight'].clone()
+        # Test network synchronization
+        print(f"\n✅ Network Synchronization Test:")
+        
+        # Check initial parameter differences
+        param_diff_before = 0.0
+        param_count = 0
+        for (main_name, main_param), (target_name, target_param) in zip(
+            main_net.named_parameters(), target_net.named_parameters()
+        ):
+            diff = (main_param - target_param).norm().item()
+            param_diff_before += diff
+            param_count += 1
+        
+        avg_diff_before = param_diff_before / param_count
+        print(f"   Initial parameter difference: {avg_diff_before:.6f}")
+        
+        # Test hard copy
         target_net.copy_weights_from(main_net)
-        updated_params = target_net.state_dict()['network.0.weight']
         
-        # Check if networks are different (they should be after copying)
-        params_different = not torch.allclose(original_params, updated_params, atol=1e-6)
-        if not params_different:
-            print(f"⚠️  Target network parameters identical - checking soft update instead")
+        param_diff_after_copy = 0.0
+        for (main_name, main_param), (target_name, target_param) in zip(
+            main_net.named_parameters(), target_net.named_parameters()
+        ):
+            diff = (main_param - target_param).norm().item()
+            param_diff_after_copy += diff
+        
+        avg_diff_after_copy = param_diff_after_copy / param_count
+        print(f"   After hard copy: {avg_diff_after_copy:.8f}")
+        
+        if avg_diff_after_copy < 1e-6:
+            print(f"   ✅ Hard copy working correctly")
         else:
-            print(f"✅ Target network update working")
+            print(f"   ⚠️  Hard copy may have issues")
+        
+        # Modify main network and test soft update
+        dummy_input = torch.randn(16, 12)
+        dummy_target = torch.randn(16, 7)
+        dummy_loss = torch.nn.functional.mse_loss(main_net(dummy_input), dummy_target)
+        dummy_loss.backward()
+        
+        # Apply a small optimizer step to main network
+        for param in main_net.parameters():
+            if param.grad is not None:
+                param.data -= 0.01 * param.grad
+        main_net.zero_grad()
         
         # Test soft update
         target_net.soft_update_from(main_net, tau=0.1)
-        print(f"✅ Soft update working")
+        
+        param_diff_after_soft = 0.0
+        for (main_name, main_param), (target_name, target_param) in zip(
+            main_net.named_parameters(), target_net.named_parameters()
+        ):
+            diff = (main_param - target_param).norm().item()
+            param_diff_after_soft += diff
+        
+        avg_diff_after_soft = param_diff_after_soft / param_count
+        print(f"   After soft update (τ=0.1): {avg_diff_after_soft:.6f}")
+        
+        if avg_diff_after_soft > 1e-6 and avg_diff_after_soft < avg_diff_before:
+            print(f"   ✅ Soft update working correctly")
+        else:
+            print(f"   ⚠️  Soft update may have issues")
+        
+        # Test Q-value distribution health
+        print(f"\n✅ Q-Value Distribution Health:")
+        test_states = torch.randn(100, 12)
+        with torch.no_grad():
+            q_values = main_net(test_states)
+            
+        q_mean = q_values.mean().item()
+        q_std = q_values.std().item()
+        q_min = q_values.min().item()
+        q_max = q_values.max().item()
+        
+        print(f"   Q-value statistics (100 random states):")
+        print(f"   - Mean: {q_mean:.4f}")
+        print(f"   - Std:  {q_std:.4f}")
+        print(f"   - Range: [{q_min:.4f}, {q_max:.4f}]")
+        
+        # Check for reasonable Q-value ranges
+        if abs(q_mean) < 10 and q_std > 0.01 and abs(q_min) < 100 and abs(q_max) < 100:
+            print(f"   ✅ Q-values in healthy range")
+        else:
+            print(f"   ⚠️  Q-values may be in unhealthy range")
         
         print("✅ DQN Network Architecture Tests PASSED")
         return True
