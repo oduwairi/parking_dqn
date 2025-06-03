@@ -9,13 +9,14 @@ import argparse
 import time
 import os
 import sys
+import pygame
 from typing import Dict, Any
 
-# Add src to path for imports
+# Add project root to Python path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
-from trainer import DQNTrainer
-from config import get_config
+from src.training.trainer import DQNTrainer
+from src.training.config import get_config
 
 
 def progressive_training_with_viz(start_stage: int = 0, use_gpu: bool = True):
