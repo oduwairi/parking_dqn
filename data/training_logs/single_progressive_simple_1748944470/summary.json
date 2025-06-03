@@ -1,0 +1,25 @@
+{
+  "experiment_name": "single_progressive_simple_1748944470",
+  "total_episodes": 322,
+  "total_training_steps": 62821,
+  "training_time_hours": 0.09038600828912523,
+  "overall_stats": {
+    "avg_reward": -32.61330845210409,
+    "std_reward": 67.98933382228154,
+    "max_reward": 219.27148860449475,
+    "min_reward": -159.36691227425536,
+    "success_rate": 0.0,
+    "collision_rate": 0.062111801242236024,
+    "avg_steps": 196.09627329192546
+  },
+  "recent_stats": {
+    "avg_reward": -2.0822930159548916,
+    "success_rate": 0.0,
+    "collision_rate": 0.09
+  },
+  "best_performance": {
+    "best_avg_reward": -24.34864128374536,
+    "best_episode": 300,
+    "best_success_rate": 0.0
+  }
+}

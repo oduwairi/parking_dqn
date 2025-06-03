@@ -154,11 +154,13 @@ def progressive_training_with_viz(start_stage: int = 0, use_gpu: bool = True):
     print(f"\n🏁 Progressive training session ended")
 
 
-def single_stage_training_with_viz(stage: str, use_gpu: bool = True):
-    """Train a single stage with visualization."""
+def single_stage_training_with_viz(stage: str, use_gpu: bool = True, 
+                                  render_frequency: int = 1, enable_rendering: bool = True):
+    """Train a single stage with configurable visualization."""
     
-    print(f"🎯 Single Stage Training with Visualization: {stage}")
+    print(f"🎯 Single Stage Training: {stage}")
     print(f"GPU Acceleration: {'Enabled' if use_gpu else 'Disabled'}")
+    print(f"Visualization: {'Every episode' if render_frequency == 1 else f'Every {render_frequency} episodes' if enable_rendering else 'Disabled'}")
     
     # Load configuration
     config = get_config(stage)
@@ -173,17 +175,21 @@ def single_stage_training_with_viz(stage: str, use_gpu: bool = True):
     print(f"   Learning Rate: {config.learning_rate}")
     print(f"   Batch Size: {config.batch_size}")
     print(f"   Device: {'GPU' if config.use_gpu else 'CPU'}")
-    print(f"   🎮 Visualization: ON (every episode)")
+    print(f"   🎮 Visualization: {'ON' if enable_rendering else 'OFF'} ({f'every {render_frequency}' if enable_rendering else 'disabled'})")
     
     try:
-        # Start training with visualization
-        print(f"\n🚀 Starting training with live visualization...")
-        print(f"   Watch the pygame window to see agent behavior!")
+        # Start training with configurable visualization
+        if enable_rendering:
+            print(f"\n🚀 Starting training with live visualization...")
+            print(f"   Watch the pygame window to see agent behavior!")
+        else:
+            print(f"\n🚀 Starting fast training (no visualization)...")
+            print(f"   Training optimized for maximum speed!")
         
         results = trainer.train(
             episodes=config.total_episodes,
-            render_during_training=True,  # Always show visualization
-            render_frequency=1,           # Render every episode
+            render_during_training=enable_rendering,
+            render_frequency=render_frequency,
             verbose=True
         )
         
@@ -203,24 +209,73 @@ def single_stage_training_with_viz(stage: str, use_gpu: bool = True):
         print(f"\n❌ Training failed: {e}")
 
 
+def resume_training_with_viz(checkpoint_path: str, additional_episodes: int = 500,
+                           render_frequency: int = 1, enable_rendering: bool = True):
+    """Resume training from a specific checkpoint."""
+    
+    print(f"🔄 Resuming Training from Checkpoint")
+    print(f"Checkpoint: {checkpoint_path}")
+    print(f"Additional Episodes: {additional_episodes}")
+    print(f"Visualization: {'Every episode' if render_frequency == 1 else f'Every {render_frequency} episodes' if enable_rendering else 'Disabled'}")
+    
+    # Load the most recent config (assumes progressive_simple)
+    config = get_config('progressive_simple')
+    config.use_gpu = True
+    
+    # Create trainer with resume
+    experiment_name = f"resumed_{int(time.time())}"
+    trainer = DQNTrainer(
+        config=config,
+        experiment_name=experiment_name,
+        resume_from_checkpoint=checkpoint_path
+    )
+    
+    try:
+        results = trainer.train(
+            episodes=additional_episodes,
+            render_during_training=enable_rendering,
+            render_frequency=render_frequency,
+            verbose=True
+        )
+        
+        print(f"\n📊 Resume Results:")
+        final_eval = results['final_evaluation']
+        print(f"   Success Rate: {final_eval['success_rate']:.1%}")
+        print(f"   Collision Rate: {final_eval['collision_rate']:.1%}")
+        print(f"   Average Reward: {final_eval['avg_reward']:+.2f}")
+        
+        return results
+        
+    except KeyboardInterrupt:
+        print(f"\n⚠️ Training interrupted by user")
+    except Exception as e:
+        print(f"\n❌ Resume failed: {e}")
+
+
 def main():
     """Main training execution with argument parsing."""
     parser = argparse.ArgumentParser(description='Progressive DQN Training with Visualization')
-    parser.add_argument('--mode', choices=['progressive', 'single'], default='progressive',
-                       help='Training mode: progressive (3 stages) or single stage')
+    parser.add_argument('--mode', choices=['progressive', 'single', 'resume'], default='progressive',
+                       help='Training mode: progressive (3 stages), single stage, or resume')
     parser.add_argument('--stage', choices=['progressive_simple', 'progressive_obstacles', 'progressive_full', 'debug_viz'], 
                        default='progressive_simple', help='Single stage to train')
     parser.add_argument('--start-stage', type=int, default=0, choices=[0, 1, 2],
                        help='Which stage to start progressive training from (0=simple, 1=obstacles, 2=full)')
     parser.add_argument('--cpu', action='store_true', help='Force CPU usage (disable GPU)')
+    parser.add_argument('--no-viz', action='store_true', help='Disable visualization for maximum speed')
+    parser.add_argument('--viz-freq', type=int, default=1, help='Visualization frequency (every N episodes)')
+    parser.add_argument('--resume-path', type=str, help='Path to checkpoint for resuming training')
+    parser.add_argument('--additional-episodes', type=int, default=500, help='Additional episodes when resuming')
     
     args = parser.parse_args()
     
     use_gpu = not args.cpu
+    enable_rendering = not args.no_viz
     
     print(f"🎮 Phase 7: Progressive DQN Training with Visualization")
     print(f"Mode: {args.mode}")
     print(f"GPU: {'Enabled' if use_gpu else 'Disabled'}")
+    print(f"Speed Mode: {'🚀 FAST' if not enable_rendering else '🎮 VISUAL'}")
     
     if args.mode == 'progressive':
         # Progressive training
@@ -228,9 +283,25 @@ def main():
             start_stage=args.start_stage,
             use_gpu=use_gpu
         )
+    elif args.mode == 'resume':
+        # Resume training
+        if not args.resume_path:
+            print("❌ --resume-path required for resume mode")
+            return
+        resume_training_with_viz(
+            checkpoint_path=args.resume_path,
+            additional_episodes=args.additional_episodes,
+            render_frequency=args.viz_freq,
+            enable_rendering=enable_rendering
+        )
     else:
         # Single stage training
-        single_stage_training_with_viz(args.stage, use_gpu=use_gpu)
+        single_stage_training_with_viz(
+            stage=args.stage, 
+            use_gpu=use_gpu,
+            render_frequency=args.viz_freq,
+            enable_rendering=enable_rendering
+        )
 
 
 if __name__ == "__main__":
