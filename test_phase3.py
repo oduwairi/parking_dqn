@@ -341,9 +341,7 @@ def test_interactive_demo():
                       f"collision={info['is_collision']}")
                 obs = env.reset()
                 step_count = 0
-            
-            time.sleep(0.1)  # Slow down for visualization
-        
+                    
         print(f"✅ Demo completed successfully ({step_count} steps)")
         env.close()
         return True
