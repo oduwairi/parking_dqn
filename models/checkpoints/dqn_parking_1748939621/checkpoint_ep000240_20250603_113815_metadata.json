@@ -1,0 +1,14 @@
+{
+  "experiment_name": "dqn_parking_1748939621",
+  "save_time": "2025-06-03T11:38:15.210717",
+  "checkpoint_counter": 12,
+  "agent_config": {
+    "network_type": "DoubleDQNNetwork",
+    "state_dim": 12,
+    "action_dim": 7,
+    "hidden_dim": 256,
+    "use_double_dqn": true,
+    "replay_buffer_size": 5000
+  },
+  "file_hash": "dd0465891cd6f32d4366700768fb9cba15204f39f956d7b1adfda6933db6ee86"
+}

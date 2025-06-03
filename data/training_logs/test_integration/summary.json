@@ -2,24 +2,24 @@
   "experiment_name": "test_integration",
   "total_episodes": 5,
   "total_training_steps": 94,
-  "training_time_hours": 0.0003437503178914388,
+  "training_time_hours": 0.0003050386905670166,
   "overall_stats": {
-    "avg_reward": 6.6487007123462805,
-    "std_reward": 3.3598039866879406,
-    "max_reward": 9.99662921939718,
-    "min_reward": 1.4466932016036598,
+    "avg_reward": 6.169493991262984,
+    "std_reward": 2.783045243279195,
+    "max_reward": 11.0922718084371,
+    "min_reward": 3.3569407282274426,
     "success_rate": 0.0,
     "collision_rate": 0.0,
     "avg_steps": 25.0
   },
   "recent_stats": {
-    "avg_reward": 6.6487007123462805,
+    "avg_reward": 6.169493991262984,
     "success_rate": 0.0,
     "collision_rate": 0.0
   },
   "best_performance": {
-    "best_avg_reward": 7.302850511975496,
-    "best_episode": 4,
+    "best_avg_reward": 8.034473080053562,
+    "best_episode": 2,
     "best_success_rate": 0.0
   }
 }

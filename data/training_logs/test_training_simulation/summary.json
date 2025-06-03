@@ -2,23 +2,23 @@
   "experiment_name": "test_training_simulation",
   "total_episodes": 3,
   "total_training_steps": 59,
-  "training_time_hours": 0.00027444269922044545,
+  "training_time_hours": 0.0002567017740673489,
   "overall_stats": {
-    "avg_reward": 6.278773034428101,
-    "std_reward": 2.89435169589464,
-    "max_reward": 9.122034746959477,
-    "min_reward": 2.3070824269345858,
+    "avg_reward": 7.500312170896251,
+    "std_reward": 1.9857353092254268,
+    "max_reward": 10.303697240391068,
+    "min_reward": 5.955472189238138,
     "success_rate": 0.0,
     "collision_rate": 0.0,
     "avg_steps": 30.0
   },
   "recent_stats": {
-    "avg_reward": 6.278773034428101,
+    "avg_reward": 7.500312170896251,
     "success_rate": 0.0,
     "collision_rate": 0.0
   },
   "best_performance": {
-    "best_avg_reward": 6.278773034428101,
+    "best_avg_reward": 7.500312170896251,
     "best_episode": 3,
     "best_success_rate": 0.0
   }
