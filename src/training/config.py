@@ -266,6 +266,89 @@ class ConfigPresets:
             use_gpu=False  # CPU for debugging to avoid GPU memory issues
         )
 
+    @staticmethod
+    def progressive_simple() -> TrainingConfig:
+        """Stage 1: Simple environment without obstacles for initial learning."""
+        return TrainingConfig(
+            total_episodes=1000,
+            max_steps_per_episode=200,
+            learning_rate=5e-4,  # Lower LR for stability
+            discount_factor=0.95,
+            batch_size=64,
+            target_update_frequency=500,
+            soft_update_rate=1e-3,
+            epsilon_start=1.0,
+            epsilon_end=0.05,
+            epsilon_decay_episodes=800,
+            replay_buffer_size=25000,
+            min_replay_size=500,
+            log_frequency=25,
+            checkpoint_frequency=100,
+            evaluation_frequency=50,
+            evaluation_episodes=3,
+            enable_obstacles=False,  # No obstacles initially
+            randomize_target=False,  # Fixed target for learning
+            use_gpu=True,
+            gradient_clip_norm=1.0,
+            early_stopping_patience=400
+        )
+    
+    @staticmethod
+    def progressive_obstacles() -> TrainingConfig:
+        """Stage 2: Add obstacles after basic parking is learned."""
+        return TrainingConfig(
+            total_episodes=1500,
+            max_steps_per_episode=300,
+            learning_rate=3e-4,  # Even lower for complex environment
+            discount_factor=0.95,
+            batch_size=64,
+            target_update_frequency=500,
+            soft_update_rate=1e-3,
+            epsilon_start=0.3,  # Start with less exploration
+            epsilon_end=0.02,
+            epsilon_decay_episodes=1000,
+            replay_buffer_size=50000,
+            min_replay_size=500,
+            log_frequency=25,
+            checkpoint_frequency=100,
+            evaluation_frequency=50,
+            evaluation_episodes=3,
+            enable_obstacles=True,  # Add obstacles
+            randomize_target=False,  # Still fixed target
+            use_gpu=True,
+            gradient_clip_norm=1.0,
+            early_stopping_patience=500
+        )
+    
+    @staticmethod
+    def progressive_full() -> TrainingConfig:
+        """Stage 3: Full complexity with randomized targets."""
+        return TrainingConfig(
+            total_episodes=2000,
+            max_steps_per_episode=400,
+            learning_rate=1e-4,  # Very stable learning
+            discount_factor=0.95,
+            batch_size=128,
+            target_update_frequency=1000,
+            soft_update_rate=5e-4,
+            epsilon_start=0.2,
+            epsilon_end=0.01,
+            epsilon_decay_episodes=1500,
+            replay_buffer_size=100000,
+            min_replay_size=1000,
+            log_frequency=25,
+            checkpoint_frequency=100,
+            evaluation_frequency=50,
+            evaluation_episodes=5,
+            enable_obstacles=True,
+            randomize_target=True,  # Full randomization
+            use_gpu=True,
+            gradient_clip_norm=0.5,
+            early_stopping_patience=800,
+            target_success_rate=0.7,
+            target_collision_rate=0.05
+        )
+
 
 def get_config(preset: str = "paper_baseline") -> TrainingConfig:
     """
@@ -285,7 +368,10 @@ def get_config(preset: str = "paper_baseline") -> TrainingConfig:
         "quick_test": ConfigPresets.quick_test,
         "high_performance": ConfigPresets.high_performance,
         "conservative": ConfigPresets.conservative,
-        "debug_viz": ConfigPresets.debug_viz
+        "debug_viz": ConfigPresets.debug_viz,
+        "progressive_simple": ConfigPresets.progressive_simple,
+        "progressive_obstacles": ConfigPresets.progressive_obstacles,
+        "progressive_full": ConfigPresets.progressive_full
     }
     
     if preset not in presets:
@@ -300,7 +386,7 @@ def get_config(preset: str = "paper_baseline") -> TrainingConfig:
 if __name__ == "__main__":
     # Example usage and testing
     print("Available Configuration Presets:")
-    for preset_name in ["paper_baseline", "quick_test", "high_performance", "conservative", "debug_viz"]:
+    for preset_name in ["paper_baseline", "quick_test", "high_performance", "conservative", "debug_viz", "progressive_simple", "progressive_obstacles", "progressive_full"]:
         print(f"\n{preset_name.upper()}:")
         config = get_config(preset_name)
         print(config)
