@@ -196,10 +196,27 @@ class DQNTrainer:
         Returns:
             Training results and final performance metrics
         """
-        total_episodes = episodes if episodes is not None else self.config.total_episodes
+        requested_episodes = episodes if episodes is not None else self.config.total_episodes
+        
+        # Calculate final episode target
+        # If resuming (current_episode > 0), requested_episodes is additional episodes
+        # If starting fresh (current_episode = 0), requested_episodes is total episodes
+        if self.current_episode > 0:
+            # Resuming: add requested episodes to current episode
+            final_episode = self.current_episode + requested_episodes
+            total_new_episodes = requested_episodes
+        else:
+            # Starting fresh: requested episodes is the total target
+            final_episode = requested_episodes
+            total_new_episodes = requested_episodes
         
         if verbose:
-            print(f"\n🎯 Starting DQN Training for {total_episodes:,} episodes")
+            if self.current_episode > 0:
+                print(f"\n🔄 Resuming DQN Training from episode {self.current_episode}")
+                print(f"   Additional episodes: {total_new_episodes:,}")
+                print(f"   Final target episode: {final_episode:,}")
+            else:
+                print(f"\n🎯 Starting DQN Training for {total_new_episodes:,} episodes")
             print(f"   Target: {self.config.target_success_rate:.0%} success rate, <{self.config.target_collision_rate:.1%} collision rate")
             if render_during_training:
                 print(f"   🎮 Visualization: ON (every {render_frequency} episode{'s' if render_frequency > 1 else ''})")
@@ -208,7 +225,7 @@ class DQNTrainer:
         
         try:
             # Main training loop
-            for episode in range(self.current_episode + 1, total_episodes + 1):
+            for episode in range(self.current_episode + 1, final_episode + 1):
                 self.current_episode = episode
                 
                 # Determine if we should render this episode

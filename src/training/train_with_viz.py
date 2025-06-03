@@ -213,17 +213,42 @@ def single_stage_training_with_viz(stage: str, use_gpu: bool = True,
 
 
 def resume_training_with_viz(checkpoint_path: str, additional_episodes: int = 500,
-                           render_frequency: int = 50, enable_rendering: bool = True):
+                           render_frequency: int = 50, enable_rendering: bool = True,
+                           config_name: str = None):
     """Resume training from a specific checkpoint."""
     
     print(f"🔄 Resuming Training from Checkpoint")
     print(f"Checkpoint: {checkpoint_path}")
     print(f"Additional Episodes: {additional_episodes}")
-    print(f"Visualization: {'Every {render_frequency} episodes' if enable_rendering else 'Disabled'}")
+    print(f"Visualization: {'Every ' + str(render_frequency) + ' episodes' if enable_rendering else 'Disabled'}")
     
-    # Load the most recent config (assumes progressive_simple)
-    config = get_config('progressive_simple')
+    # Validate checkpoint path
+    if not os.path.exists(checkpoint_path):
+        raise FileNotFoundError(f"Checkpoint file not found: {checkpoint_path}")
+    
+    # Try to detect config from checkpoint or use provided config_name
+    if config_name is None:
+        # Try to infer config from checkpoint directory or filename
+        if "progressive_simple" in checkpoint_path:
+            config_name = "progressive_simple"
+        elif "progressive_obstacles" in checkpoint_path:
+            config_name = "progressive_obstacles" 
+        elif "progressive_full" in checkpoint_path:
+            config_name = "progressive_full"
+        else:
+            # Default to progressive_simple if can't detect
+            config_name = "progressive_simple"
+            print(f"⚠️ Could not detect config from checkpoint path, using default: {config_name}")
+    
+    print(f"Using config: {config_name}")
+    
+    # Load configuration
+    config = get_config(config_name)
     config.use_gpu = True
+    
+    # Override total episodes to be additional episodes from current checkpoint
+    # The trainer will start from the checkpoint episode and run for additional_episodes more
+    config.total_episodes = additional_episodes
     
     # Create trainer with resume
     experiment_name = f"resumed_{int(time.time())}"
@@ -232,6 +257,12 @@ def resume_training_with_viz(checkpoint_path: str, additional_episodes: int = 50
         experiment_name=experiment_name,
         resume_from_checkpoint=checkpoint_path
     )
+    
+    print(f"\n📊 Resume Configuration:")
+    print(f"   Config: {config_name}")
+    print(f"   Additional Episodes: {additional_episodes}")
+    print(f"   Device: {'GPU' if config.use_gpu else 'CPU'}")
+    print(f"   🎮 Visualization: {'ON' if enable_rendering else 'OFF'} (every {render_frequency} episodes)")
     
     try:
         results = trainer.train(
@@ -246,6 +277,7 @@ def resume_training_with_viz(checkpoint_path: str, additional_episodes: int = 50
         print(f"   Success Rate: {final_eval['success_rate']:.1%}")
         print(f"   Collision Rate: {final_eval['collision_rate']:.1%}")
         print(f"   Average Reward: {final_eval['avg_reward']:+.2f}")
+        print(f"   Final Model: {results['final_model_path']}")
         
         return results
         
@@ -270,6 +302,8 @@ def main():
     parser.add_argument('--viz-freq', type=int, default=50, help='Visualization frequency (every N episodes)')
     parser.add_argument('--resume-path', type=str, help='Path to checkpoint for resuming training')
     parser.add_argument('--additional-episodes', type=int, default=500, help='Additional episodes when resuming')
+    parser.add_argument('--config-name', type=str, choices=['progressive_simple', 'progressive_obstacles', 'progressive_full'], 
+                       help='Config name to use when resuming (auto-detected if not specified)')
     
     args = parser.parse_args()
     
@@ -297,7 +331,8 @@ def main():
             checkpoint_path=args.resume_path,
             additional_episodes=args.additional_episodes,
             render_frequency=args.viz_freq,
-            enable_rendering=enable_rendering
+            enable_rendering=enable_rendering,
+            config_name=args.config_name
         )
     else:
         # Single stage training
