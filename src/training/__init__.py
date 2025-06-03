@@ -1,7 +1,40 @@
 """
-Training Package
-Contains training pipeline, hyperparameter configuration, and logging utilities.
+Training Module for DQN Autonomous Parking
+
+Provides complete training pipeline with:
+- Training configuration and hyperparameters
+- Comprehensive logging and metrics tracking  
+- Model checkpointing and state management
+- Complete training orchestration
 """
 
-# Will be populated in Phase 5
-__all__ = [] 
+from .config import (
+    TrainingConfig,
+    ConfigPresets,
+    get_config
+)
+
+from .logger import (
+    TrainingLogger,
+    EpisodeMetrics,
+    TrainingMetrics
+)
+
+from .checkpoint import (
+    ModelCheckpoint
+)
+
+from .trainer import (
+    DQNTrainer
+)
+
+__all__ = [
+    'TrainingConfig',
+    'ConfigPresets', 
+    'get_config',
+    'TrainingLogger',
+    'EpisodeMetrics',
+    'TrainingMetrics',
+    'ModelCheckpoint',
+    'DQNTrainer'
+] 

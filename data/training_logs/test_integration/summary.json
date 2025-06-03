@@ -1,0 +1,25 @@
+{
+  "experiment_name": "test_integration",
+  "total_episodes": 5,
+  "total_training_steps": 94,
+  "training_time_hours": 0.0003437503178914388,
+  "overall_stats": {
+    "avg_reward": 6.6487007123462805,
+    "std_reward": 3.3598039866879406,
+    "max_reward": 9.99662921939718,
+    "min_reward": 1.4466932016036598,
+    "success_rate": 0.0,
+    "collision_rate": 0.0,
+    "avg_steps": 25.0
+  },
+  "recent_stats": {
+    "avg_reward": 6.6487007123462805,
+    "success_rate": 0.0,
+    "collision_rate": 0.0
+  },
+  "best_performance": {
+    "best_avg_reward": 7.302850511975496,
+    "best_episode": 4,
+    "best_success_rate": 0.0
+  }
+}
