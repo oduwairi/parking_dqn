@@ -297,9 +297,13 @@ def main():
         print("❌ No experiment directories found.")
         return
     
-    # Use the most recent experiment
+    print(f"📁 Found experiments: {experiments}")
+    
+    # Use the most recent experiment (or force specific one)
     experiments.sort()
-    latest_experiment = experiments[-1]
+    latest_experiment = "dqn_parking_1748940537"  # Force the visualization training
+    if latest_experiment not in experiments:
+        latest_experiment = experiments[-1]
     experiment_dir = os.path.join(log_dir, latest_experiment)
     
     print(f"🔍 Analyzing experiment: {latest_experiment}")
