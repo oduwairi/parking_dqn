@@ -270,7 +270,7 @@ class ConfigPresets:
     def progressive_simple() -> TrainingConfig:
         """Stage 1: Industry-proven DQN hyperparameters for autonomous parking."""
         return TrainingConfig(
-            total_episodes=1500,  # Proven sufficient for parking convergence
+            total_episodes=1500,  # Increased for more training time
             max_steps_per_episode=500,  # Industry standard for parking tasks
             learning_rate=1e-4,  # Proven stable learning rate for DQN parking
             discount_factor=0.99,  # Standard discount for long-term planning
@@ -294,8 +294,8 @@ class ConfigPresets:
             prioritized_replay=True,  # Proven to improve sample efficiency
             gradient_clip_norm=10.0,  # Proven gradient norm clipping
             
-            # Training monitoring with proven targets
-            early_stopping_patience=300,  # Sufficient patience for convergence
+            # Training monitoring with proven targets - INCREASED PATIENCE
+            early_stopping_patience=800,  # More patience for parking convergence
             target_success_rate=0.6,  # Achievable target for Stage 1
             target_collision_rate=0.1,  # Allow some collisions initially
             
