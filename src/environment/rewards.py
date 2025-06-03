@@ -128,7 +128,9 @@ class RewardFunction:
         episode_done: bool = False
     ) -> Dict[str, Any]:
         """
-        Calculate enhanced reward for current state with improved progress tracking.
+        Calculate TRULY SPARSE reward - only genuine progress matters!
+        
+        Philosophy: No free rewards! Agent must EARN every positive point.
         
         Args:
             car_x, car_y: Car position
@@ -152,95 +154,94 @@ class RewardFunction:
         distance_to_target = self._distance_to_target(car_x, car_y, target_x, target_y)
         angle_error = abs(self._angle_error(car_theta, target_theta))
         
-        # 1. Collision Penalty (highest priority, episode termination)
+        # 1. COLLISION = INSTANT DEATH (-100)
         if is_collision:
             reward_components[RewardType.COLLISION.value] = self.collision_penalty
             total_reward += self.collision_penalty
-            
-            # Reset progress tracking on collision
             self._reset_progress_tracking()
             
-        # 2. Success Reward (highest positive, episode termination)
+        # 2. SUCCESS = BIG WIN (+100)
         elif self._is_successful_parking(car_x, car_y, car_theta, target_x, target_y, target_theta):
             reward_components[RewardType.SUCCESS.value] = self.success_reward
             total_reward += self.success_reward
             
-            # Bonus for accuracy within tolerance
-            accuracy_bonus = self._calculate_accuracy_bonus(
-                distance_to_target, angle_error
-            )
-            if accuracy_bonus > 0:
-                reward_components['accuracy_bonus'] = accuracy_bonus
-                total_reward += accuracy_bonus
-            
-        # 3. Boundary Penalty
+        # 3. OUT OF BOUNDS = PENALTY (-10)
         elif is_out_of_bounds:
             reward_components[RewardType.BOUNDARY.value] = self.boundary_penalty
             total_reward += self.boundary_penalty
             
         else:
-            # 4. Enhanced Progress Reward (main behavior shaping)
-            progress_reward = self._calculate_enhanced_progress_reward(
-                car_x, car_y, car_theta, target_x, target_y, target_theta
-            )
-            if progress_reward != 0:
-                reward_components[RewardType.PROGRESS.value] = progress_reward
-                total_reward += progress_reward
+            # 4. CORE PHILOSOPHY: Only reward SIGNIFICANT, GENUINE progress
             
-            # 5. Proximity Reward (continuous reward shaping toward goal)
-            proximity_reward = self._calculate_proximity_reward(distance_to_target)
-            if proximity_reward != 0:
-                reward_components[RewardType.PROXIMITY.value] = proximity_reward
-                total_reward += proximity_reward
+            # TIME PENALTY: Every step costs something (encourages efficiency)
+            time_penalty = -0.2  # Doubled from -0.1
+            reward_components[RewardType.TIME.value] = time_penalty
+            total_reward += time_penalty
             
-            # 6. Orientation Reward (encourage proper orientation)
-            orientation_reward = self._calculate_orientation_reward(angle_error)
-            if orientation_reward != 0:
-                reward_components[RewardType.ORIENTATION.value] = orientation_reward
-                total_reward += orientation_reward
+            # SPARSE PROGRESS REWARD: Only for substantial improvement
+            if self.last_distance_to_target is not None:
+                distance_improvement = self.last_distance_to_target - distance_to_target
+                
+                # Only reward SIGNIFICANT distance improvements (≥0.5m closer)
+                if distance_improvement >= 0.5:
+                    progress_reward = distance_improvement * 2.0  # Scale with improvement
+                    reward_components[RewardType.PROGRESS.value] = progress_reward
+                    total_reward += progress_reward
+                    self.steps_without_progress = 0
+                    
+                # Penalize moving away from target (≥0.3m further)
+                elif distance_improvement <= -0.3:
+                    progress_penalty = distance_improvement * 1.0  # Negative value
+                    reward_components[RewardType.PROGRESS.value] = progress_penalty
+                    total_reward += progress_penalty
+                    self.steps_without_progress += 1
+                    
+                else:
+                    # No reward for tiny movements - neutral
+                    self.steps_without_progress += 1
             
-            # 7. Time Penalty (encourage efficiency)
-            reward_components[RewardType.TIME.value] = self.time_penalty
-            total_reward += self.time_penalty
+            # PROXIMITY BONUS: Only when very close to target
+            if distance_to_target < 3.0:  # Only within 3m
+                proximity_bonus = (3.0 - distance_to_target) / 3.0 * 0.5  # Max +0.5
+                reward_components['proximity_bonus'] = proximity_bonus
+                total_reward += proximity_bonus
+                
+            # ORIENTATION BONUS: Only when close AND well-oriented  
+            if distance_to_target < 2.0 and angle_error < math.radians(30):  # Within 2m and 30°
+                orientation_bonus = (math.radians(30) - angle_error) / math.radians(30) * 0.3  # Max +0.3
+                reward_components['orientation_bonus'] = orientation_bonus
+                total_reward += orientation_bonus
             
-            # 8. Velocity-based reward (encourage smooth motion)
-            velocity_reward = self._calculate_velocity_reward(car_velocity, sensor_readings)
-            if velocity_reward != 0:
-                reward_components[RewardType.VELOCITY.value] = velocity_reward
-                total_reward += velocity_reward
-            
-            # 9. Stagnation penalty (prevent getting stuck)
-            stagnation_penalty = self._calculate_stagnation_penalty()
-            if stagnation_penalty != 0:
-                reward_components['stagnation'] = stagnation_penalty
+            # STAGNATION PENALTY: Heavily penalize doing nothing
+            if self.steps_without_progress >= 30:  # Reduced from 50
+                stagnation_penalty = -0.5 * (self.steps_without_progress - 30) / 20  # Escalating penalty
+                stagnation_penalty = max(stagnation_penalty, -3.0)  # Cap at -3.0
+                reward_components['stagnation_penalty'] = stagnation_penalty
                 total_reward += stagnation_penalty
+            
+            # SPEED PENALTY: Discourage reckless driving near target
+            if distance_to_target < 5.0 and abs(car_velocity) > 2.0:
+                speed_penalty = -0.1 * (abs(car_velocity) - 2.0)
+                reward_components['speed_penalty'] = speed_penalty
+                total_reward += speed_penalty
         
         # Update progress tracking
         self._update_progress_tracking(distance_to_target, angle_error)
         
-        # Create reward info dictionary
-        reward_info = {
+        # Store reward components for analysis
+        if episode_done:
+            self.reward_history.append(reward_components)
+        
+        return {
             'total_reward': total_reward,
             'components': reward_components,
             'distance_to_target': distance_to_target,
             'angle_error': angle_error,
-            'angle_error_degrees': math.degrees(angle_error),
-            'is_successful': self._is_successful_parking(car_x, car_y, car_theta, target_x, target_y, target_theta),
-            'timestep': timestep,
-            'progress_made': self.last_combined_progress is not None and self.last_combined_progress > 0,
-            'best_distance': self.best_distance_achieved,
-            'best_angle': self.best_angle_achieved
+            'success': self._is_successful_parking(car_x, car_y, car_theta, target_x, target_y, target_theta),
+            'collision': is_collision,
+            'out_of_bounds': is_out_of_bounds,
+            'is_terminal': is_collision or episode_done or self._is_successful_parking(car_x, car_y, car_theta, target_x, target_y, target_theta)
         }
-        
-        # Store in history for analysis
-        self.reward_history.append(reward_info.copy())
-        
-        # Track episode rewards
-        if episode_done:
-            episode_total = sum(entry['total_reward'] for entry in self.reward_history)
-            self.episode_rewards.append(episode_total)
-            
-        return reward_info
     
     def _is_successful_parking(
         self, 

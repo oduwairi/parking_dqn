@@ -268,29 +268,33 @@ class ConfigPresets:
 
     @staticmethod
     def progressive_simple() -> TrainingConfig:
-        """Stage 1: Simple environment without obstacles for initial learning."""
+        """Stage 1: SPARSE rewards - agent must truly learn parking behavior."""
         return TrainingConfig(
-            total_episodes=1000,
-            max_steps_per_episode=200,
-            learning_rate=5e-4,  # Lower LR for stability
-            discount_factor=0.95,
-            batch_size=64,
-            target_update_frequency=500,
-            soft_update_rate=1e-3,
+            total_episodes=800,  # Fewer episodes, more focused
+            max_steps_per_episode=100,  # Shorter episodes force efficiency
+            learning_rate=2e-3,  # Higher LR for sparse rewards
+            discount_factor=0.95,  # Higher discount for long-term planning
+            batch_size=64,  # Larger batch for stable learning
+            target_update_frequency=200,  # More frequent updates
+            soft_update_rate=1e-2,  # Faster target network updates
             epsilon_start=1.0,
-            epsilon_end=0.05,
-            epsilon_decay_episodes=800,
-            replay_buffer_size=25000,
-            min_replay_size=500,
-            log_frequency=25,
-            checkpoint_frequency=100,
-            evaluation_frequency=50,
-            evaluation_episodes=3,
+            epsilon_end=0.05,  # Higher final epsilon for continued exploration
+            epsilon_decay_episodes=400,  # Faster decay
+            replay_buffer_size=20000,  # Larger buffer for sparse rewards
+            min_replay_size=500,  # More experience before training
+            log_frequency=20,
+            checkpoint_frequency=50,
+            evaluation_frequency=25,
+            evaluation_episodes=5,
             enable_obstacles=False,  # No obstacles initially
             randomize_target=False,  # Fixed target for learning
             use_gpu=True,
             gradient_clip_norm=1.0,
-            early_stopping_patience=400
+            early_stopping_patience=200,  # Faster stopping
+            environment_width=35.0,  # Even smaller environment
+            environment_height=20.0,
+            target_success_rate=0.3,  # Lower initial target (30%)
+            target_collision_rate=0.1  # Allow some collisions initially
         )
     
     @staticmethod
