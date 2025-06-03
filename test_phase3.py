@@ -327,7 +327,7 @@ def test_interactive_demo():
         start_time = time.time()
         step_count = 0
         
-        while time.time() - start_time < 5.0:  # 5 second demo
+        while time.time() - start_time < 10.0:  # 5 second demo
             action = env.action_space.sample()
             obs, reward, done, info = env.step(action)
             step_count += 1
