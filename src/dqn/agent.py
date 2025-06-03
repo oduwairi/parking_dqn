@@ -18,8 +18,13 @@ from typing import Dict, List, Tuple, Optional, Any
 import random
 import time
 import logging
+import os
+import sys
 
-from .network import DQNNetwork, DoubleDQNNetwork, create_dqn_networks
+# Add project root to path for imports
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+
+from src.neural_networks.dqn_network import DQNNetwork, DuelingDQNNetwork
 from .replay_buffer import ReplayBuffer, PrioritizedReplayBuffer, create_replay_buffer
 from .loss_functions import DQNLoss, GradientManager, LearningRateScheduler, EpsilonScheduler
 
@@ -97,12 +102,15 @@ class DQNAgent:
                 torch.cuda.manual_seed(seed)
         
         # Initialize networks
-        self.main_network, self.target_network = create_dqn_networks(
-            state_dim=state_dim,
-            action_dim=action_dim,
-            device=self.device,
-            use_double_dqn=use_double_dqn
-        )
+        if use_double_dqn:
+            self.main_network = DuelingDQNNetwork(state_dim, action_dim).to(self.device)
+            self.target_network = DuelingDQNNetwork(state_dim, action_dim).to(self.device)
+        else:
+            self.main_network = DQNNetwork(state_dim, action_dim).to(self.device)
+            self.target_network = DQNNetwork(state_dim, action_dim).to(self.device)
+        
+        # Initialize target network with same weights as main network
+        self.target_network.load_state_dict(self.main_network.state_dict())
         
         # Initialize optimizer
         self.optimizer = optim.Adam(self.main_network.parameters(), lr=learning_rate)
@@ -147,11 +155,14 @@ class DQNAgent:
         self.recent_rewards = []
         self.success_rate = 0.0
         
+        # Count network parameters
+        main_params = sum(p.numel() for p in self.main_network.parameters())
+        
         print(f"✅ DQN Agent initialized:")
         print(f"   - Device: {self.device}")
-        print(f"   - Network type: {'Double DQN' if use_double_dqn else 'Standard DQN'}")
+        print(f"   - Network type: {'Dueling DQN' if use_double_dqn else 'Standard DQN'}")
         print(f"   - Replay buffer: {'Prioritized' if use_prioritized_replay else 'Standard'}")
-        print(f"   - Network parameters: {self.main_network.get_network_info()['total_parameters']:,}")
+        print(f"   - Network parameters: {main_params:,}")
     
     def select_action(self, state: np.ndarray, epsilon: Optional[float] = None) -> int:
         """
@@ -259,10 +270,13 @@ class DQNAgent:
         
         # Update target network
         if self.training_step % self.target_update_freq == 0:
-            self.target_network.copy_weights_from(self.main_network)
+            self.target_network.load_state_dict(self.main_network.state_dict())
         
         # Soft update (alternative to hard update)
-        # self.target_network.soft_update_from(self.main_network, self.soft_update_tau)
+        # Use soft update if enabled
+        if hasattr(self, 'use_soft_update') and self.use_soft_update:
+            for target_param, main_param in zip(self.target_network.parameters(), self.main_network.parameters()):
+                target_param.data.copy_(self.soft_update_tau * main_param.data + (1.0 - self.soft_update_tau) * target_param.data)
         
         # Update learning rate
         current_lr = self.lr_scheduler.update_optimizer(self.optimizer, self.training_step)
@@ -318,7 +332,9 @@ class DQNAgent:
     def get_agent_info(self) -> Dict[str, Any]:
         """Get comprehensive agent information."""
         buffer_info = self.replay_buffer.get_buffer_info()
-        network_info = self.main_network.get_network_info()
+        
+        # Count network parameters manually since get_network_info doesn't exist
+        network_params = sum(p.numel() for p in self.main_network.parameters())
         
         return {
             'training_step': self.training_step,
@@ -328,7 +344,7 @@ class DQNAgent:
             'best_reward': self.best_reward,
             'average_reward': np.mean(self.recent_rewards) if self.recent_rewards else 0.0,
             'buffer_usage': buffer_info['usage_percent'],
-            'network_parameters': network_info['total_parameters'],
+            'network_parameters': network_params,
             'device': str(self.device),
             'use_double_dqn': self.use_double_dqn,
             'use_prioritized_replay': self.use_prioritized_replay

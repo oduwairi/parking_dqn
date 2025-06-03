@@ -362,16 +362,20 @@ class DQNTrainer:
     def _update_target_network(self):
         """Update target network according to configuration."""
         if self.config.use_soft_update:
-            # Soft update every training step
+            # Soft update every training step using standard PyTorch operations
             if self.training_step > 0:
-                self.agent.target_network.soft_update_from(
-                    self.agent.main_network, 
-                    tau=self.config.soft_update_rate
-                )
+                for target_param, main_param in zip(
+                    self.agent.target_network.parameters(), 
+                    self.agent.main_network.parameters()
+                ):
+                    target_param.data.copy_(
+                        self.config.soft_update_rate * main_param.data + 
+                        (1.0 - self.config.soft_update_rate) * target_param.data
+                    )
         else:
-            # Hard update every N steps
+            # Hard update every N steps using state_dict
             if self.training_step % self.config.target_update_frequency == 0:
-                self.agent.target_network.copy_weights_from(self.agent.main_network)
+                self.agent.target_network.load_state_dict(self.agent.main_network.state_dict())
     
     def _log_episode(self, episode_metrics: Dict[str, Any]):
         """Log episode metrics."""

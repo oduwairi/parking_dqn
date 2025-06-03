@@ -19,13 +19,14 @@ from src.training.trainer import DQNTrainer
 from src.training.config import get_config
 
 
-def progressive_training_with_viz(start_stage: int = 0, use_gpu: bool = True):
+def progressive_training_with_viz(start_stage: int = 0, use_gpu: bool = True, viz_freq: int = 50):
     """
-    Run progressive training with visualization.
+    Run progressive training with periodic visualization.
     
     Args:
         start_stage: Which stage to start from (0=simple, 1=obstacles, 2=full)
         use_gpu: Whether to use GPU acceleration
+        viz_freq: Visualization frequency (every N episodes)
     """
     
     # Define progressive stages
@@ -35,9 +36,10 @@ def progressive_training_with_viz(start_stage: int = 0, use_gpu: bool = True):
         ("progressive_full", "🔴 Stage 3: Full Complexity")
     ]
     
-    print(f"🚀 PROGRESSIVE TRAINING WITH VISUALIZATION")
+    print(f"🚀 PROGRESSIVE TRAINING WITH PERIODIC VISUALIZATION")
     print(f"Starting from stage: {start_stage + 1}")
     print(f"GPU Acceleration: {'Enabled' if use_gpu else 'Disabled'}")
+    print(f"Visualization: Every {viz_freq} episodes")
     
     # Success criteria for progression
     stage_criteria = {
@@ -85,17 +87,17 @@ def progressive_training_with_viz(start_stage: int = 0, use_gpu: bool = True):
         max_collision = criteria.get("max_collision_rate", 1)
         
         print(f"   Success Criteria: ≥{min_success:.0%} success, ≤{max_collision:.0%} collision")
-        print(f"   🎮 Visualization: ON (every episode)")
+        print(f"   🎮 Visualization: Every {viz_freq} episodes")
         
         try:
-            # Train with visualization - ALWAYS show simulation window
-            print(f"\n🚀 Starting training with live visualization...")
-            print(f"   Watch the pygame window to see agent behavior!")
+            # Train with periodic visualization
+            print(f"\n🚀 Starting training with periodic visualization...")
+            print(f"   Watch the pygame window every {viz_freq} episodes!")
             
             results = trainer.train(
                 episodes=config.total_episodes,
-                render_during_training=True,  # Always show visualization
-                render_frequency=1,           # Render every episode
+                render_during_training=True,
+                render_frequency=viz_freq,
                 verbose=True
             )
             
@@ -155,12 +157,12 @@ def progressive_training_with_viz(start_stage: int = 0, use_gpu: bool = True):
 
 
 def single_stage_training_with_viz(stage: str, use_gpu: bool = True, 
-                                  render_frequency: int = 1, enable_rendering: bool = True):
+                                  render_frequency: int = 50, enable_rendering: bool = True):
     """Train a single stage with configurable visualization."""
     
     print(f"🎯 Single Stage Training: {stage}")
     print(f"GPU Acceleration: {'Enabled' if use_gpu else 'Disabled'}")
-    print(f"Visualization: {'Every episode' if render_frequency == 1 else f'Every {render_frequency} episodes' if enable_rendering else 'Disabled'}")
+    print(f"Visualization: {'Every {render_frequency} episodes' if enable_rendering else 'Disabled'}")
     
     # Load configuration
     config = get_config(stage)
@@ -175,13 +177,13 @@ def single_stage_training_with_viz(stage: str, use_gpu: bool = True,
     print(f"   Learning Rate: {config.learning_rate}")
     print(f"   Batch Size: {config.batch_size}")
     print(f"   Device: {'GPU' if config.use_gpu else 'CPU'}")
-    print(f"   🎮 Visualization: {'ON' if enable_rendering else 'OFF'} ({f'every {render_frequency}' if enable_rendering else 'disabled'})")
+    print(f"   🎮 Visualization: {'ON' if enable_rendering else 'OFF'} (every {render_frequency} episodes)")
     
     try:
         # Start training with configurable visualization
         if enable_rendering:
-            print(f"\n🚀 Starting training with live visualization...")
-            print(f"   Watch the pygame window to see agent behavior!")
+            print(f"\n🚀 Starting training with periodic visualization...")
+            print(f"   Watch the pygame window every {render_frequency} episodes!")
         else:
             print(f"\n🚀 Starting fast training (no visualization)...")
             print(f"   Training optimized for maximum speed!")
@@ -207,16 +209,17 @@ def single_stage_training_with_viz(stage: str, use_gpu: bool = True,
         
     except Exception as e:
         print(f"\n❌ Training failed: {e}")
+        raise e
 
 
 def resume_training_with_viz(checkpoint_path: str, additional_episodes: int = 500,
-                           render_frequency: int = 1, enable_rendering: bool = True):
+                           render_frequency: int = 50, enable_rendering: bool = True):
     """Resume training from a specific checkpoint."""
     
     print(f"🔄 Resuming Training from Checkpoint")
     print(f"Checkpoint: {checkpoint_path}")
     print(f"Additional Episodes: {additional_episodes}")
-    print(f"Visualization: {'Every episode' if render_frequency == 1 else f'Every {render_frequency} episodes' if enable_rendering else 'Disabled'}")
+    print(f"Visualization: {'Every {render_frequency} episodes' if enable_rendering else 'Disabled'}")
     
     # Load the most recent config (assumes progressive_simple)
     config = get_config('progressive_simple')
@@ -250,12 +253,13 @@ def resume_training_with_viz(checkpoint_path: str, additional_episodes: int = 50
         print(f"\n⚠️ Training interrupted by user")
     except Exception as e:
         print(f"\n❌ Resume failed: {e}")
+        raise e
 
 
 def main():
     """Main training execution with argument parsing."""
     parser = argparse.ArgumentParser(description='Progressive DQN Training with Visualization')
-    parser.add_argument('--mode', choices=['progressive', 'single', 'resume'], default='progressive',
+    parser.add_argument('--mode', choices=['progressive', 'single', 'resume'], default='single',
                        help='Training mode: progressive (3 stages), single stage, or resume')
     parser.add_argument('--stage', choices=['progressive_simple', 'progressive_obstacles', 'progressive_full', 'debug_viz'], 
                        default='progressive_simple', help='Single stage to train')
@@ -263,7 +267,7 @@ def main():
                        help='Which stage to start progressive training from (0=simple, 1=obstacles, 2=full)')
     parser.add_argument('--cpu', action='store_true', help='Force CPU usage (disable GPU)')
     parser.add_argument('--no-viz', action='store_true', help='Disable visualization for maximum speed')
-    parser.add_argument('--viz-freq', type=int, default=1, help='Visualization frequency (every N episodes)')
+    parser.add_argument('--viz-freq', type=int, default=50, help='Visualization frequency (every N episodes)')
     parser.add_argument('--resume-path', type=str, help='Path to checkpoint for resuming training')
     parser.add_argument('--additional-episodes', type=int, default=500, help='Additional episodes when resuming')
     
@@ -275,13 +279,14 @@ def main():
     print(f"🎮 Phase 7: Progressive DQN Training with Visualization")
     print(f"Mode: {args.mode}")
     print(f"GPU: {'Enabled' if use_gpu else 'Disabled'}")
-    print(f"Speed Mode: {'🚀 FAST' if not enable_rendering else '🎮 VISUAL'}")
+    print(f"Speed Mode: {'🚀 FAST' if not enable_rendering else f'🎮 VISUAL (every {args.viz_freq} episodes)'}")
     
     if args.mode == 'progressive':
         # Progressive training
         progressive_training_with_viz(
             start_stage=args.start_stage,
-            use_gpu=use_gpu
+            use_gpu=use_gpu,
+            viz_freq=args.viz_freq
         )
     elif args.mode == 'resume':
         # Resume training
